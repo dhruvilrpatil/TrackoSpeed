@@ -653,7 +653,7 @@ class _CameraModePageState extends State<CameraModePage>
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: AppTheme.cardColor,
-                        hintText: hasPlate ? null : 'e.g. MH48AW2767',
+                        hintText: hasPlate ? null : 'e.g. MH34AB1234',
                         hintStyle: GoogleFonts.notoSans(
                           fontSize: 20,
                           color: Colors.white30,
