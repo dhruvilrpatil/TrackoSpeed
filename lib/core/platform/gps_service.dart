@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 import 'package:geolocator/geolocator.dart';
 import 'package:dartz/dartz.dart';
 
@@ -107,8 +107,8 @@ class GpsService with ErrorHandlerMixin {
   // Kalman filter state for speed smoothing
   double _estimatedSpeed = 0;
   double _errorEstimate = 1;
-  static const double _processNoise = 0.08;
-  static const double _measurementNoise = 0.4;
+  static const double _processNoise = 0.5;
+  static const double _measurementNoise = 0.15;
 
   // Position-based speed validation
   double _prevLat = 0;
@@ -180,10 +180,26 @@ class GpsService with ErrorHandlerMixin {
       }
 
       // Configure location settings for high accuracy speed tracking
-      const locationSettings = LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 0, // Update on any movement
-      );
+      // Use platform-specific settings for faster updates
+      late final LocationSettings locationSettings;
+      if (Platform.isAndroid) {
+        locationSettings = AndroidSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 0,
+          intervalDuration: const Duration(milliseconds: 250),
+          forceLocationManager: false,
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationTitle: 'TrackoSpeed',
+            notificationText: 'Speed tracking active',
+            enableWakeLock: true,
+          ),
+        );
+      } else {
+        locationSettings = const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 0,
+        );
+      }
 
       _positionSubscription = Geolocator.getPositionStream(
         locationSettings: locationSettings,
@@ -243,9 +259,9 @@ class GpsService with ErrorHandlerMixin {
           if ((positionSpeed - reportedSpeed).abs() > 30) {
             reportedSpeed = math.min(positionSpeed, reportedSpeed);
           }
-          // When both agree roughly, average them for stability
+          // When both agree roughly, favour sensor speed for responsiveness
           else if (positionSpeed > 2.0 && reportedSpeed > 2.0) {
-            reportedSpeed = reportedSpeed * 0.7 + positionSpeed * 0.3;
+            reportedSpeed = reportedSpeed * 0.85 + positionSpeed * 0.15;
           }
         }
       }

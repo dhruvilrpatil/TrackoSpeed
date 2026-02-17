@@ -86,12 +86,12 @@ class CameraService with ErrorHandlerMixin {
         orElse: () => _cameras.first,
       );
 
-      // Initialize controller with medium resolution — high causes
-      // takePicture() to produce huge JPEGs that freeze the preview.
-      // TFLite only needs 300×300 so medium (480p) is more than enough.
+      // Initialize controller with high resolution for sharp AR preview.
+      // TFLite detection downscales internally, so preview quality benefits
+      // from the higher resolution without affecting detection speed.
       _controller = CameraController(
         backCamera,
-        ResolutionPreset.medium,
+        ResolutionPreset.veryHigh,
         enableAudio: false, // No audio needed
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -301,7 +301,7 @@ class CameraService with ErrorHandlerMixin {
 
       _controller = CameraController(
         newCamera,
-        ResolutionPreset.medium,
+        ResolutionPreset.veryHigh,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );

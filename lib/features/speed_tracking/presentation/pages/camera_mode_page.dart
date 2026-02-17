@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,6 +30,7 @@ class _CameraModePageState extends State<CameraModePage>
   double _currentZoom = 0.0; // 0.0 = 1x, 1.0 = max zoom
   CameraService? _cameraService;
   bool _showFlash = false;
+  final TextEditingController _plateController = TextEditingController();
 
   @override
   void initState() {
@@ -48,6 +50,7 @@ class _CameraModePageState extends State<CameraModePage>
 
   @override
   void dispose() {
+    _plateController.dispose();
     // Stop tracking when leaving AR mode so camera is released
     try {
       context.read<SpeedTrackingBloc>().add(const StopTracking());
@@ -149,9 +152,6 @@ class _CameraModePageState extends State<CameraModePage>
                   ),
                 ),
 
-              // Speed overlay box
-              _buildSpeedOverlayBox(state),
-
               // Top bar
               _buildTopBar(context, state),
 
@@ -198,48 +198,39 @@ class _CameraModePageState extends State<CameraModePage>
     return const CameraPreviewWidget();
   }
 
-  Widget _buildSpeedOverlayBox(SpeedTrackingState state) {
+  /// Build speed chip for top bar
+  Widget _buildSpeedChip(SpeedTrackingState state) {
     final isTracking = state.isTrackingActive;
     final speed = isTracking ? state.userSpeedKmh : 0.0;
     final displaySpeed = isTracking ? '${speed.toInt()} km/h' : '-- km/h';
 
-    // Positioned above the bottom section (zoom+controls ≈ 180px)
-    // so it never overlaps with other UI.
-    return Positioned(
-      bottom: 210,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(alpha: 0.3),
+            blurRadius: 8,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.speed, color: Colors.white, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                displaySpeed,
-                style: GoogleFonts.notoSans(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ],
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.speed, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            displaySpeed,
+            style: GoogleFonts.notoSans(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              decoration: TextDecoration.none,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -270,6 +261,9 @@ class _CameraModePageState extends State<CameraModePage>
               onTap: () => Navigator.of(context).pop(),
             ),
             const Spacer(),
+            // Speed indicator (moved from bottom)
+            _buildSpeedChip(state),
+            const SizedBox(width: 8),
             // GPS indicator
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -362,7 +356,7 @@ class _CameraModePageState extends State<CameraModePage>
           children: [
             // Zoom slider
             _buildZoomSlider(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             // Capture controls row
             _buildCaptureControls(context, state),
           ],
@@ -431,7 +425,7 @@ class _CameraModePageState extends State<CameraModePage>
           onTap: () => _showCaptureGallery(context, state),
         ),
 
-        // Capture button
+        // Capture button (larger)
         GestureDetector(
           onTap: state.isCapturing
               ? null
@@ -440,15 +434,15 @@ class _CameraModePageState extends State<CameraModePage>
                   context.read<SpeedTrackingBloc>().add(const CapturePressed());
                 },
           child: Container(
-            width: 72,
-            height: 72,
+            width: 84,
+            height: 84,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 4),
+              border: Border.all(color: Colors.white, width: 5),
               boxShadow: [
                 BoxShadow(
                   color: Colors.white.withValues(alpha: 0.3),
-                  blurRadius: 12,
+                  blurRadius: 14,
                 ),
               ],
             ),
@@ -460,14 +454,14 @@ class _CameraModePageState extends State<CameraModePage>
               ),
               child: state.isCapturing
                   ? const Padding(
-                      padding: EdgeInsets.all(18),
+                      padding: EdgeInsets.all(20),
                       child: CircularProgressIndicator(
                         color: AppTheme.primaryColor,
                         strokeWidth: 3,
                       ),
                     )
                   : const Icon(Icons.camera_alt,
-                      color: Colors.black87, size: 28),
+                      color: Colors.black87, size: 34),
             ),
           ),
         ),
@@ -582,161 +576,231 @@ class _CameraModePageState extends State<CameraModePage>
   ) {
     final plateText = state.pendingPlateNumber ?? '';
     final hasPlate = plateText.isNotEmpty;
-    final controller = TextEditingController(text: plateText);
+
+    // Sync controller text only when overlay first appears or plate changes,
+    // but don't overwrite user edits (only set if controller is empty or matches old state)
+    if (_plateController.text.isEmpty && hasPlate) {
+      _plateController.text = plateText;
+      _plateController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _plateController.text.length),
+      );
+    }
+
+    // Get the captured image bytes from the bloc
+    final bloc = context.read<SpeedTrackingBloc>();
+    final Uint8List? imageBytes = bloc.pendingCaptureImageBytes;
+
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     // Force dark theme for this overlay — camera page is always dark
     return Positioned.fill(
       child: Theme(
         data: AppTheme.darkTheme,
         child: Container(
-          color: Colors.black54,
-          child: Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 32),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.primaryColor, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                ],
+          color: Colors.black87,
+          child: Column(
+            children: [
+              // ── Image preview area (takes available space) ──
+              Expanded(
+                child: Center(
+                  child: imageBytes != null
+                      ? Padding(
+                          padding: EdgeInsets.only(
+                            top: MediaQuery.of(context).padding.top + 16,
+                            left: 16,
+                            right: 16,
+                            bottom: 8,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.memory(
+                              imageBytes,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.white38,
+                              size: 64,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Image preview not available',
+                              style: GoogleFonts.notoSans(
+                                color: Colors.white38,
+                                fontSize: 14,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.directions_car,
-                    color: AppTheme.primaryColor,
-                    size: 40,
+
+              // ── Bottom plate input panel ──
+              Container(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 16,
+                  bottom: bottomPadding > 0 ? bottomPadding + 8 : MediaQuery.of(context).padding.bottom + 16,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  border: const Border(
+                    top: BorderSide(color: AppTheme.primaryColor, width: 2),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    hasPlate ? 'Plate Detected' : 'Enter Plate Number',
-                    style: GoogleFonts.notoSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      decoration: TextDecoration.none,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 20,
+                      offset: const Offset(0, -4),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    hasPlate
-                        ? 'Confirm or correct the plate number:'
-                        : 'Enter the vehicle plate number below:',
-                    style: GoogleFonts.notoSans(
-                      fontSize: 13,
-                      color: AppTheme.textSecondary,
-                      decoration: TextDecoration.none,
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.directions_car,
+                          color: AppTheme.primaryColor,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          hasPlate ? 'Plate Detected' : 'Enter Plate Number',
+                          style: GoogleFonts.notoSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          hasPlate ? 'Confirm or correct:' : 'Type plate below:',
+                          style: GoogleFonts.notoSans(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Editable plate text field
-                  Material(
-                    color: Colors.transparent,
-                    child: TextField(
-                      controller: controller,
-                      textAlign: TextAlign.center,
-                      textCapitalization: TextCapitalization.characters,
-                      style: GoogleFonts.notoSans(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
-                      cursorColor: AppTheme.primaryColor,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: AppTheme.cardColor,
-                        hintText: hasPlate ? null : 'e.g. MH34AB1234',
-                        hintStyle: GoogleFonts.notoSans(
-                          fontSize: 20,
-                          color: Colors.white30,
+                    const SizedBox(height: 12),
+                    // Editable plate text field
+                    Material(
+                      color: Colors.transparent,
+                      child: TextField(
+                        controller: _plateController,
+                        textAlign: TextAlign.center,
+                        textCapitalization: TextCapitalization.characters,
+                        style: GoogleFonts.notoSans(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                           letterSpacing: 2,
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primaryColor,
-                            width: 2,
+                        cursorColor: AppTheme.primaryColor,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: AppTheme.cardColor,
+                          hintText: hasPlate ? null : 'e.g. MH34AB1234',
+                          hintStyle: GoogleFonts.notoSans(
+                            fontSize: 20,
+                            color: Colors.white30,
+                            letterSpacing: 2,
                           ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 16,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppTheme.primaryColor,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                            horizontal: 16,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      // Cancel
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            context
-                                .read<SpeedTrackingBloc>()
-                                .add(const CancelCapture());
-                          },
-                          icon: const Icon(Icons.close, size: 18),
-                          label: Text(
-                            'Cancel',
-                            style: GoogleFonts.notoSans(fontSize: 14),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white70,
-                            side: const BorderSide(color: Colors.white30),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                    const SizedBox(height: 14),
+                    // Action buttons
+                    Row(
+                      children: [
+                        // Cancel
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              _plateController.clear();
+                              context
+                                  .read<SpeedTrackingBloc>()
+                                  .add(const CancelCapture());
+                            },
+                            icon: const Icon(Icons.close, size: 18),
+                            label: Text(
+                              'Cancel',
+                              style: GoogleFonts.notoSans(fontSize: 14),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white30),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Confirm
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            final confirmed = controller.text.trim();
-                            context
-                                .read<SpeedTrackingBloc>()
-                                .add(ConfirmPlate(confirmed));
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: Text(
-                            'Confirm',
-                            style: GoogleFonts.notoSans(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                        const SizedBox(width: 12),
+                        // Confirm
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              final confirmed = _plateController.text.trim();
+                              _plateController.clear();
+                              context
+                                  .read<SpeedTrackingBloc>()
+                                  .add(ConfirmPlate(confirmed));
+                            },
+                            icon: const Icon(Icons.check, size: 18),
+                            label: Text(
+                              'Confirm',
+                              style: GoogleFonts.notoSans(fontSize: 14),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

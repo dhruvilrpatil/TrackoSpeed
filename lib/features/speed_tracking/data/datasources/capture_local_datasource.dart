@@ -1,7 +1,5 @@
 import 'package:sqflite/sqflite.dart';
-import 'package:dartz/dartz.dart';
 
-import '../../../../core/error/failures.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../domain/entities/capture_entity.dart';
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:camera/camera.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../bloc/speed_tracking_bloc.dart';

@@ -106,8 +106,8 @@ class AppTheme {
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: cyan,
-          foregroundColor: const Color(0xFF000000),
+          backgroundColor: const Color(0xFFD4A85C),
+          foregroundColor: const Color(0xFF1A1A1A),
           elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -120,8 +120,8 @@ class AppTheme {
       ),
 
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: cyan,
-        foregroundColor: Color(0xFF000000),
+        backgroundColor: Color(0xFFD4A85C),
+        foregroundColor: Color(0xFF1A1A1A),
         elevation: 6,
         shape: CircleBorder(),
       ),
@@ -238,7 +238,7 @@ class AppTheme {
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: lightTan,
+          backgroundColor: const Color(0xFFB8D89E),
           foregroundColor: const Color(0xFF2D3436),
           elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -252,7 +252,7 @@ class AppTheme {
       ),
 
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: lightTan,
+        backgroundColor: Color(0xFFB8D89E),
         foregroundColor: Color(0xFF2D3436),
         elevation: 6,
         shape: CircleBorder(),

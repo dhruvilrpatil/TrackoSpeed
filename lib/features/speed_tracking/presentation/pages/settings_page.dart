@@ -1,12 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/theme/theme_provider.dart';
 import '../../../../main.dart' show themeProvider;
-import '../bloc/speed_tracking_bloc.dart';
 
 /// Settings page for app configuration
 class SettingsPage extends StatefulWidget {
@@ -201,9 +198,9 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       child: Column(
         children: [
-          _buildInfoRow(Icons.speed, 'Version', '1.0.1'),
+          _buildInfoRow(Icons.speed, 'Version', '2.0.1'),
           const Divider(height: 32),
-          _buildInfoRow(Icons.build, 'Build', '1'),
+          _buildInfoRow(Icons.build, 'Build', '2'),
           const Divider(height: 32),
           _buildInfoRow(Icons.code, 'Github', 'https://github.com/dhruvilrpatil/TrackoSpeed.git'),
         ],

@@ -2,7 +2,7 @@ name: trackospeed
 description: "Vehicle Speed Estimation App - Estimates speed of other vehicles using GPS and camera with OCR plate recognition."
 publish_to: 'none'
 
-version: 1.0.1+1
+version: 2.0.1+2
 
 environment:
   sdk: ^3.10.7

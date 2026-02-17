@@ -60,6 +60,9 @@ class SpeedTrackingBloc extends Bloc<SpeedTrackingEvent, SpeedTrackingState> {
   /// Pending capture params waiting for plate confirmation.
   CaptureParams? _pendingCaptureParams;
 
+  /// Image bytes of the pending capture (for preview in plate overlay).
+  Uint8List? get pendingCaptureImageBytes => _pendingCaptureParams?.imageBytes;
+
   // -- Dashboard stats accumulators --
   double _sessionMaxSpeed = 0;
   double _sessionSpeedSum = 0;
